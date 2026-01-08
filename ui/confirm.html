@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moza Browser</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+
+        }
+        body {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+
+        }
+        button {
+            width: 100px;
+            height: 30px;
+            border: 2px solid black;
+            border-radius: 15px;
+        }
+        .buttons {
+            margin-top: 40px;;
+        }
+    </style>
+</head>
+<body>
+    <p>
+        Are you sure you want to leave?
+    </p>
+    <div class="buttons">
+           <button class="yes">Yes</button>
+    <button class="no">No</button> 
+    </div>
+    <script>
+        document.querySelector(".buttons").addEventListener("click", (e) => {
+            const btn = e.target.closest("button");
+            if (!btn) return; // kliknięto poza przyciskiem
+
+            const action = btn.className; // exit / minimize / maximize
+
+            if (window.electron && window.electron.send) {
+                window.electron.send("confirm", action);
+            } else {
+                console.warn("window.electron nie jest dostępne");
+            }
+        });
+    </script>
+</body>
+</html>

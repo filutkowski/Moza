@@ -1,97 +1,112 @@
-import { app, BrowserWindow, ipcMain, dialog} from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
 
-// --- LOGGING ---
-log.initialize(); // wymagane w ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// --- USTAWIENIE KATALOGÓW ---
+log.initialize();
+
 const base = path.join(app.getPath("appData"), "Moza");
 
 app.setPath("crashDumps", path.join(base, "Logs", "Crashes"));
 app.setPath("logs", path.join(base, "Logs"));
 app.setPath("userData", path.join(base, "Data"));
 
-// --- UPEWNIJ SIĘ, ŻE KATALOG LOGÓW ISTNIEJE ---
 fs.mkdirSync(app.getPath("logs"), { recursive: true });
 
-// --- USTAWIENIE ŚCIEŻKI DO PLIKU LOGÓW ---
 log.transports.file.resolvePathFn = () =>
   path.join(app.getPath("logs"), "main.log");
-// --- OKNO ---
-function createWindow() {
-  const win = new BrowserWindow({
-    width: 900,
-    height: 700,
+
+let mainWindow = null;
+let confirmWindow = null;
+let isQuitting = false;
+
+function createConfirmWindow() {
+  if (confirmWindow) {
+    confirmWindow.show();
+    return;
+  }
+
+  confirmWindow = new BrowserWindow({
+    width: 400,
+    height: 300,
+    resizable: false,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
-      preload: path.resolve("./preload.js"),
-      
+      preload: path.join(__dirname, "preload.js"),
     },
-    icon: path.resolve("./icon.ico"),
-    frame: false,
+    icon: path.join(__dirname, "icon.ico"),
     title: "Moza Browser",
   });
-  win.loadFile("./ui/app.html");
-  win.on("page-title-updated", (event) => {
-    event.preventDefault(); // blokuje zmianę tytułu
-  });
-  win.setMenu(null);
-  win.on('close', (e) => {
-    e.preventDefault(); // blokuje zamknięcie okna
 
-    const choice = dialog.showMessageBoxSync(win, {
-      type: 'question',
-      buttons: ['Yes', 'No'],
-      defaultId: 1,
-      title: 'Confirmation',
-      message: 'Are you sure you want to leave?'
-    });
-
-    if (choice === 0) {
-      // Tak → zamknij
-      win.destroy();
-    }
-  });
-
-
-  log.info("Application started");
-ipcMain.on('port', (event, data) => {
-  log.info("Port data: " + data);
-  switch (data) {
-    case "exit":
-      app.quit()
-      break;
-      case "minimize":
-        win.minimize()
-        break;
-        case "maximize":
-          if (win.isMaximized()) {
-            win.unmaximize();
-          }
-          else {
-            win.maximize();
-          }
-          break;
-
-  }
-});
-
+  confirmWindow.setMenu(null);
+  confirmWindow.loadFile(path.join(__dirname, "ui/confirm.html"));
 
 
 }
 
-// --- START APLIKACJI ---
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 900,
+    height: 700,
+    frame: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      webviewTag: true,
+      preload: path.join(__dirname, "preload.js"),
+    },
+    icon: path.join(__dirname, "icon.ico"),
+    title: "Moza Browser",
+  });
+
+  mainWindow.loadFile(path.join(__dirname, "ui/app.html"));
+  mainWindow.setMenu(null);
+
+  mainWindow.on("page-title-updated", (e) => e.preventDefault());
+
+
+}
+
+ipcMain.on("confirm", (event, data) => {
+  if (data === "yes") {
+    confirmWindow.close();
+    mainWindow.close()
+    isQuitting = true;
+    app.quit();
+  } else if (confirmWindow) {
+    confirmWindow.hide();
+  }
+});
+
+ipcMain.on("port", (event, data) => {
+  if (!mainWindow) return;
+
+  switch (data) {
+    case "exit":
+      createConfirmWindow();
+
+
+      break;
+    case "minimize":
+      mainWindow.minimize();
+      break;
+    case "maximize":
+      if (mainWindow.isMaximized()) mainWindow.unmaximize();
+      else mainWindow.maximize();
+      break;
+  }
+});
+
 app.whenReady().then(() => {
-  log.info("Moza Browser ready");
   createWindow();
 });
 
-// --- ZAMYKANIE ---
 app.on("window-all-closed", () => {
-  log.info("Quitting Moza Browser");
   if (process.platform !== "darwin") app.quit();
 });
