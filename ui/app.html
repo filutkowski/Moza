@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/uk.css">
+</head>
+
+<body>
+    <header>
+
+           <div class="buttons">
+
+        <button class="exit"></button>
+        <button class="minimize"></button>
+        <button class="maximize"></button>
+        <div class="ion">
+                                    <img src="../icon.png" alt="">
+        <h1 class="title">Moza</h1>    
+        </div>
+
+    </div> 
+    </header>
+
+
+    <script>
+        document.querySelector(".buttons").addEventListener("click", (e) => {
+            const btn = e.target.closest("button");
+            if (!btn) return; // kliknięto poza przyciskiem
+
+            const action = btn.className; // exit / minimize / maximize
+
+            if (window.electron && window.electron.send) {
+                window.electron.send("port", action);
+            } else {
+                console.warn("window.electron nie jest dostępne");
+            }
+        });
+    </script>
+</body>
+
+</html>
